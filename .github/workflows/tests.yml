@@ -11,7 +11,7 @@ jobs:
     name: Ejecutar pruebas unitarias
     runs-on: ubuntu-latest
 
-    # Apunta a la subcarpeta donde vive el microservicio
+    # Todos los pasos "run" se ejecutan dentro de la subcarpeta
     defaults:
       run:
         working-directory: blacklist-microservice
@@ -26,8 +26,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: blacklist-microservice/requirements.txt
+          # Sin cache-dependency-path para evitar el error de ruta
 
       # ── 3. Instalar dependencias ────────────────────────────────────────────
       - name: 📦 Instalar dependencias
