@@ -11,11 +11,6 @@ jobs:
     name: Ejecutar pruebas unitarias
     runs-on: ubuntu-latest
 
-    # Todos los pasos "run" se ejecutan dentro de la subcarpeta
-    defaults:
-      run:
-        working-directory: blacklist-microservice
-
     steps:
       # ── 1. Obtener el código ────────────────────────────────────────────────
       - name: 📥 Checkout del repositorio
@@ -26,7 +21,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          # Sin cache-dependency-path para evitar el error de ruta
 
       # ── 3. Instalar dependencias ────────────────────────────────────────────
       - name: 📦 Instalar dependencias
@@ -54,5 +48,5 @@ jobs:
         if: always()
         with:
           name: coverage-report
-          path: blacklist-microservice/coverage.xml
+          path: coverage.xml
           retention-days: 7
