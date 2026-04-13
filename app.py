@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from extensions import db, ma
-from routes.blacklist_routes import blacklist_bp
+from routes.blacklist_routes import blacklist_bp, VERSION
 import os
 
 def create_app():
@@ -18,6 +18,12 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # RDS: fail fast if unreachable (avoids Gunicorn worker timeout during import).
+    if DATABASE_URL.startswith("postgresql"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "connect_args": {"connect_timeout": 10},
+        }
 
     # ── JWT configuration ───────────────────────────────────────────────────
     # Static token for simplicity (as allowed by the spec).
@@ -37,7 +43,7 @@ def create_app():
     # ── Health-check endpoint (required by Beanstalk) ────────────────────────
     @app.route("/health", methods=["GET"])
     def health():
-        return {"status": "healthy"}, 200
+        return {"status": "healthy", "version": VERSION}, 200
 
     # ── Create tables ────────────────────────────────────────────────────────
     with app.app_context():

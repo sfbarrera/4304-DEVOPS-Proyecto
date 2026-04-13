@@ -15,9 +15,9 @@ with app.app_context():
         identity="static-api-client",
         expires_delta=timedelta(days=365)   # 1 year — good enough for testing
     )
-    print("\n── Static Bearer Token ──────────────────────────────────────────")
+    print("\n--- Static Bearer Token ---")
     print(token)
-    print("────────────────────────────────────────────────────────────────\n")
+    print("---------------------------\n")
     print("Use in Postman:")
     print("  Header: Authorization")
     print("  Value:  Bearer " + token)

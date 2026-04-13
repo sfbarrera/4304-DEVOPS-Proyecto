@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: Microservicio lista negra global (emails)
+  description: |
+    API REST para gestionar y consultar la lista negra global de emails.
+    Autenticación con **Bearer JWT** (token generado con el mismo `JWT_SECRET_KEY` del servidor).
+
+    Incluye `GET /health` para comprobaciones de salud (p. ej. AWS Elastic Beanstalk).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000
+    description: Desarrollo local
+  - url: https://TU-ENTORNO.elasticbeanstalk.com
+    description: Producción (reemplazar por la URL de su despliegue)
+
+tags:
+  - name: Blacklist
+    description: Alta y consulta en lista negra
+  - name: Health
+    description: Salud del servicio
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Estado del servicio
+      description: No requiere autenticación. Usado por balanceadores y monitoreo.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
+  /blacklists:
+    post:
+      tags: [Blacklist]
+      summary: Agregar email a la lista negra global
+      description: |
+        Persiste el email con `app_uuid` y `blocked_reason` opcional.
+        El servidor guarda **IP del cliente** (cabecera `X-Forwarded-For` si existe) y **fecha/hora** (`created_at`).
+      operationId: postBlacklist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlacklistCreateRequest"
+            examples:
+              ejemplo:
+                value:
+                  email: cliente@empresa.com
+                  app_uuid: 550e8400-e29b-41d4-a716-446655440000
+                  blocked_reason: Fraude reportado por app interna
+      responses:
+        "201":
+          description: Email agregado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlacklistCreateResponse"
+        "400":
+          description: Cuerpo JSON inválido o error de validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidation"
+              examples:
+                sinJson:
+                  value:
+                    msg: No JSON body provided.
+                validacion:
+                  value:
+                    msg: Validation error.
+                    errors:
+                      email: ["Not a valid email address."]
+                      app_uuid: ["app_uuid must be a valid UUID."]
+        "401":
+          description: Falta token o token inválido
+        "409":
+          description: El email ya existe en la lista negra
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [msg, id]
+                properties:
+                  msg:
+                    type: string
+                    example: The email 'cliente@empresa.com' is already in the blacklist.
+                  id:
+                    type: string
+                    format: uuid
+                    description: ID del registro existente
+
+  /blacklists/{email}:
+    get:
+      tags: [Blacklist]
+      summary: Consultar si un email está en la lista negra
+      description: |
+        El `email` va en la ruta. Si contiene `@`, codificar como `%40` en clientes que lo requieran.
+      operationId: getBlacklistByEmail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+          example: cliente@empresa.com
+      responses:
+        "200":
+          description: Resultado de la consulta (presente o no en lista)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlacklistQueryResponse"
+              examples:
+                bloqueado:
+                  value:
+                    blacklisted: true
+                    email: cliente@empresa.com
+                    blocked_reason: Fraude reportado por app interna
+                    created_at: "2026-04-11T12:00:00"
+                noBloqueado:
+                  value:
+                    blacklisted: false
+                    email: otro@empresa.com
+                    blocked_reason: null
+        "401":
+          description: Falta token o token inválido
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT de acceso. En Postman usar tipo **Bearer Token**.
+        Generar localmente con `python generate_token.py` usando el mismo `JWT_SECRET_KEY` que el servidor.
+
+  schemas:
+    BlacklistCreateRequest:
+      type: object
+      required: [email, app_uuid]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email del cliente a bloquear
+        app_uuid:
+          type: string
+          format: uuid
+          description: UUID obligatorio de la aplicación cliente
+        blocked_reason:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Motivo opcional (máx. 255 caracteres)
+
+    BlacklistCreateResponse:
+      type: object
+      required: [msg, id]
+      properties:
+        msg:
+          type: string
+          example: Email 'cliente@empresa.com' was successfully added to the blacklist.
+        id:
+          type: string
+          format: uuid
+          description: ID del nuevo registro
+
+    BlacklistQueryResponse:
+      type: object
+      required: [blacklisted, email]
+      properties:
+        blacklisted:
+          type: boolean
+        email:
+          type: string
+        blocked_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Solo presente si blacklisted es true
+
+    ErrorValidation:
+      type: object
+      properties:
+        msg:
+          type: string
+        errors:
+          type: object
+          additionalProperties: true
+          description: Detalle por campo (Marshmallow)
+
+security:
+  - bearerAuth: []
