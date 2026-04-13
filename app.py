@@ -18,6 +18,12 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # RDS: fail fast if unreachable (avoids Gunicorn worker timeout during import).
+    if DATABASE_URL.startswith("postgresql"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "connect_args": {"connect_timeout": 10},
+        }
 
     # ── JWT configuration ───────────────────────────────────────────────────
     # Static token for simplicity (as allowed by the spec).

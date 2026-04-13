@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:8000 --workers 3 application:application
+web: gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --graceful-timeout 30 application:application
