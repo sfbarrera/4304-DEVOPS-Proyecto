@@ -6,7 +6,7 @@ Microservicio REST para gestión de listas negras de emails, desarrollado con **
 
 ## Video de sustentación y documentación
 
-📹 **Entrega 1:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/:f:/g/personal/sf_barreram1_uniandes_edu_co/IgBnjsTdQpTyS6fdb3RXICO4AfbGFklkhDmpF6D8k1a8EcY?e=ozOa0b)
+**Entrega 1:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/:f:/g/personal/sf_barreram1_uniandes_edu_co/IgBnjsTdQpTyS6fdb3RXICO4AfbGFklkhDmpF6D8k1a8EcY?e=ozOa0b)
 
 ---
 
