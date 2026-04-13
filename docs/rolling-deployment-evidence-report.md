@@ -97,11 +97,11 @@ Con 3 instancias activas y un lote del 15%, Beanstalk procesa aproximadamente 1 
 
 ![GET blacklists](/docs/images/rolling-deployment/07-postman-get-blacklist-200.png)
 
-- **URL:** `http://deployment-rolling-v2.us-east-1.elasticbeanstalk.com/blacklists/<email>`
+- **URL:** `http://deployment-rolling-v2.us-east-1.elasticbeanstalk.com/blacklists/spam3@example.co`
 - **Método:** GET
 - **Header:** `Authorization: Bearer <token>`
-- **Status:** `200 OK`
-- **Respuesta:** `{"blacklisted": true/false, "email": "...", "blocked_reason": ...}`
+- **Status:** `200 OK` — 80 ms
+- **Respuesta:** `{"blacklisted": false, "email": "spam3@example.co", "blocked_reason": null, "version": "all-at-once-v2"}` — email no encontrado en la blacklist
 
 ---
 
