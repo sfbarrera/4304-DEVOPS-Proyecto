@@ -10,6 +10,8 @@ from schemas.blacklist_schema import blacklist_entry_schema
 blacklist_bp = Blueprint("blacklist", __name__)
 api = Api(blacklist_bp)
 
+VERSION = "all-at-once-v1"
+
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -29,13 +31,13 @@ class BlacklistResource(Resource):
     def post(self):
         json_data = request.get_json(silent=True)
         if not json_data:
-            return {"msg": "No JSON body provided."}, 400
+            return {"msg": "No JSON body provided.", "version": VERSION}, 400
 
         # ── Validate & deserialise ────────────────────────────────────────────
         try:
             data = blacklist_entry_schema.load(json_data, session=db.session)
         except ValidationError as err:
-            return {"msg": "Validation error.", "errors": err.messages}, 400
+            return {"msg": "Validation error.", "errors": err.messages, "version": VERSION}, 400
 
         # ── Duplicate check ───────────────────────────────────────────────────
         existing = BlacklistEntry.query.filter_by(email=data.email).first()
@@ -43,6 +45,7 @@ class BlacklistResource(Resource):
             return {
                 "msg": f"The email '{data.email}' is already in the blacklist.",
                 "id": existing.id,
+                "version": VERSION,
             }, 409
 
         # ── Enrich with server-side fields ────────────────────────────────────
@@ -55,6 +58,7 @@ class BlacklistResource(Resource):
         return {
             "msg": f"Email '{data.email}' was successfully added to the blacklist.",
             "id": data.id,
+            "version": VERSION,
         }, 201
 
 
@@ -71,12 +75,14 @@ class BlacklistQueryResource(Resource):
                 "email": entry.email,
                 "blocked_reason": entry.blocked_reason,
                 "created_at": entry.created_at.isoformat(),
+                "version": VERSION,
             }, 200
         else:
             return {
                 "blacklisted": False,
                 "email": email,
                 "blocked_reason": None,
+                "version": VERSION,
             }, 200
 
 

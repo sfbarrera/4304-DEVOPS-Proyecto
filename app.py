@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from extensions import db, ma
-from routes.blacklist_routes import blacklist_bp
+from routes.blacklist_routes import blacklist_bp, VERSION
 import os
 
 def create_app():
@@ -43,7 +43,7 @@ def create_app():
     # ── Health-check endpoint (required by Beanstalk) ────────────────────────
     @app.route("/health", methods=["GET"])
     def health():
-        return {"status": "healthy"}, 200
+        return {"status": "healthy", "version": VERSION}, 200
 
     # ── Create tables ────────────────────────────────────────────────────────
     with app.app_context():
