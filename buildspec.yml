@@ -1,0 +1,47 @@
+version: 0.2
+
+# AWS CodeBuild spec for the blacklist microservice.
+# Phases: install deps -> run unit tests -> package app.zip for Elastic Beanstalk.
+# The final artifact (app.zip) is uploaded to the S3 bucket configured in the
+# CodeBuild project. No deployment (CD) is performed here.
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Python version:" && python --version
+      - python -m pip install --upgrade pip
+      - pip install -r requirements.txt
+      - pip install -r requirements-dev.txt
+
+  pre_build:
+    commands:
+      - echo "Running unit tests with pytest..."
+      - pytest -q --maxfail=1 --disable-warnings
+
+  build:
+    commands:
+      - echo "Packaging application for Elastic Beanstalk..."
+      - mkdir -p build
+      - |
+        zip -r build/app.zip . \
+          -x "*.git*" \
+          -x "tests/*" \
+          -x "build/*" \
+          -x "*.pyc" \
+          -x "*__pycache__*" \
+          -x ".venv/*" \
+          -x "venv/*" \
+          -x "*.zip"
+      - echo "Artifact built at build/app.zip"
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+
+artifacts:
+  files:
+    - build/app.zip
+  discard-paths: yes
+  name: blacklist-$(date +%Y-%m-%d-%H-%M-%S)

@@ -10,7 +10,7 @@ from schemas.blacklist_schema import blacklist_entry_schema
 blacklist_bp = Blueprint("blacklist", __name__)
 api = Api(blacklist_bp)
 
-VERSION = "all-at-once-v1"
+VERSION = "all-at-once-v2"
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
