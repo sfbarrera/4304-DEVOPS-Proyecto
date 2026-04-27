@@ -4,7 +4,7 @@ Microservicio REST para gestión de listas negras de emails, desarrollado con **
 
 ---
 
-## Documentación por entrega
+## Documentación
 
 ### Entrega 1 — Microservicio y estrategias de despliegue en AWS Elastic Beanstalk
 
@@ -20,6 +20,11 @@ El microservicio está descrito en este archivo. Las evidencias de cada estrateg
 ### Entrega 2 — Pipeline de Integración Continua
 
 [Proyecto 1 entrega 2 – Documento.md](docs/entrega-2/Proyecto%201%20entrega%202%20%E2%80%93%20Documento.md) — Configuración del pipeline CI sobre AWS CodePipeline + CodeBuild, ejecuciones exitosas y fallidas, y artefactos generados en S3.
+
+
+## Video de sustentación y documentación
+
+**Entrega 1:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/:f:/g/personal/sf_barreram1_uniandes_edu_co/IgBnjsTdQpTyS6fdb3RXICO4AfbGFklkhDmpF6D8k1a8EcY?e=ozOa0b)
 
 ---
 
