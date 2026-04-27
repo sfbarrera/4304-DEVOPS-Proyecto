@@ -16,9 +16,45 @@ El proceso de CI cubre tres responsabilidades principales:
 
 ---
 
-## 2. Configuración del Pipeline de Integración Continua
+## 2. API en Producción – Colección Postman
 
-### 2.1 Herramientas utilizadas
+La aplicación está desplegada sobre **AWS Elastic Beanstalk** y es accesible mediante Postman. La colección pública con todos los escenarios de prueba está publicada en:
+
+> **[https://documenter.getpostman.com/view/10339921/2sBXitDTdr](https://documenter.getpostman.com/view/10339921/2sBXitDTdr)**
+
+### 2.1 Endpoints disponibles
+
+| Método | Endpoint | Autenticación | Descripción |
+|---|---|---|---|
+| `GET` | `/health` | No requerida | Verifica el estado del servicio |
+| `POST` | `/blacklists` | Bearer JWT | Agrega un email a la lista negra |
+| `GET` | `/blacklists/<email>` | Bearer JWT | Consulta si un email está en lista negra |
+
+### 2.2 Escenarios de prueba cubiertos en la colección
+
+La colección incluye los casos funcionales principales para cada endpoint:
+
+**`POST /blacklists`**
+- Agregar un email con motivo de bloqueo → `201 Created`
+- Agregar un email sin motivo (campo opcional) → `201 Created`
+- Intentar agregar un email ya registrado → `409 Conflict`
+- Enviar UUID de aplicación inválido → `400 Bad Request`
+- Enviar formato de email inválido → `400 Bad Request`
+- Llamada sin token de autorización → `401 Unauthorized`
+
+**`GET /blacklists/<email>`**
+- Consultar un email en lista negra → `200 OK` + `blacklisted: true`
+- Consultar un email no registrado → `200 OK` + `blacklisted: false`
+- Llamada sin token de autorización → `401 Unauthorized`
+
+**`GET /health`**
+- Verificación de salud del servicio → `200 OK` + `status: healthy`
+
+---
+
+## 3. Configuración del Pipeline de Integración Continua
+
+### 3.1 Herramientas utilizadas
 
 | Herramienta | Rol |
 |---|---|
@@ -28,7 +64,7 @@ El proceso de CI cubre tres responsabilidades principales:
 | **Amazon S3** | Almacenamiento del artefacto generado (`app.zip`) |
 | **AWS Elastic Beanstalk** | Plataforma destino del artefacto |
 
-### 2.2 Estructura del pipeline
+### 3.2 Estructura del pipeline
 
 El pipeline `ebs-pipeline-final` consta de dos etapas:
 
@@ -48,7 +84,7 @@ Artefacto: build/app.zip  →  Amazon S3
 
 El pipeline se dispara automáticamente con cada *commit* a la rama `main`.
 
-### 2.3 Archivo de configuración (`buildspec.yml`)
+### 3.3 Archivo de configuración (`buildspec.yml`)
 
 El archivo `buildspec.yml` en la raíz del repositorio define las instrucciones de build para AWS CodeBuild:
 
@@ -97,7 +133,7 @@ artifacts:
   name: blacklist-$(date +%Y-%m-%d-%H-%M-%S)
 ```
 
-### 2.4 Escenarios de prueba de la API
+### 3.4 Escenarios de prueba unitaria de la API
 
 Las pruebas unitarias están implementadas con `pytest` usando SQLite en memoria (sin dependencia de base de datos externa), lo que garantiza su ejecución en entornos de CI limpios.
 
@@ -136,9 +172,177 @@ Las pruebas unitarias están implementadas con `pytest` usando SQLite en memoria
 
 ---
 
-## 3. Ejecución Exitosa del Pipeline
+## 4. Configuración del Pipeline en la Consola de AWS
 
-### 3.1 Resumen de la ejecución
+La canalización fue creada mediante el asistente de **AWS CodePipeline** siguiendo 7 pasos. A continuación se documenta cada paso con las decisiones de configuración tomadas.
+
+### Paso 1 – Elegir la opción de creación
+
+Se seleccionó la opción **"Crear una canalización personalizada"** para tener control total sobre las etapas y su configuración.
+
+**Figura 1:**
+
+![Paso 1 – Tipo de canalización](images/canalizacion-3.jpeg)
+
+---
+
+### Paso 2 – Configuración de la canalización
+
+| Parámetro | Valor configurado |
+|---|---|
+| **Nombre** | `ebs-test` |
+| **Tipo** | V2 |
+| **Modo de ejecución** | En cola (*Queued*) |
+| **Rol de servicio** | Nuevo rol de servicio |
+| **Nombre del rol** | `AWSCodePipelineServiceRole-us-east-1-ebs-test` |
+
+El modo *En cola* garantiza que si se disparan múltiples ejecuciones simultáneas, se ejecuten en orden secuencial.
+
+**Figura 2:**
+
+![Paso 2 – Configuración de la canalización](images/canalizacion-4.jpeg)
+
+---
+
+### Paso 3 – Etapa de origen (Source)
+
+| Parámetro | Valor configurado |
+|---|---|
+| **Proveedor** | GitHub (a través de GitHub App) |
+| **Repositorio** | `sfbarrera/4304-DEVOPS-Proyecto` |
+| **Rama** | `main` |
+| **Formato de artefacto** | CodePipeline predeterminado (`CODE_ZIP`) |
+| **Detección de cambios** | Webhook habilitado (push y pull requests) |
+| **Reintento automático** | Activado |
+
+El webhook garantiza que el pipeline se dispare automáticamente ante cada `commit` o `push` a la rama `main`.
+
+**Figura 3:**
+
+![Paso 3 – Etapa Source](images/canalizacion-5.jpeg)
+
+---
+
+### Paso 4 – Etapa de compilación (Build) y creación del proyecto CodeBuild
+
+Se seleccionó **AWS CodeBuild** como proveedor de compilación con tipo *Compilación única*.
+
+**Figura 4:**
+
+![Paso 4 – Etapa de compilación](images/canalizacion-6.jpeg)
+
+Desde el mismo asistente se creó el proyecto de CodeBuild con la siguiente configuración de entorno:
+
+| Parámetro | Valor configurado |
+|---|---|
+| **Nombre del proyecto** | `ebs-test-test-test` |
+| **Modelo de aprovisionamiento** | Bajo demanda |
+| **Imagen del entorno** | Imagen administrada por AWS |
+| **Computación** | EC2 |
+| **Modo de ejecución** | Contenedor (Docker) |
+| **Sistema operativo** | Amazon Linux |
+| **Runtime** | Standard |
+| **Imagen** | `aws/codebuild/amazonlinux-x86_64-standard:6.0` |
+| **Versión de imagen** | Siempre la más reciente |
+| **Rol de servicio** | Nuevo rol (`codebuild-ebs-test-test-test-test-service-role`) |
+
+**Figura 5:**
+
+![Crear proyecto CodeBuild – Entorno](images/canalizacion-7.jpeg)
+
+Para la especificación de compilación se configuró el rol de servicio y el envío de logs a **CloudWatch Logs** (`aws/codebuild/ebs-test-test-test`):
+
+**Figura 6:**
+
+![CodeBuild – Rol y logs](images/canalizacion-8.jpeg)
+
+La especificación de compilación fue configurada para utilizar el archivo **`buildspec.yml`** en la raíz del repositorio:
+
+**Figura 7:**
+
+![CodeBuild – Especificación buildspec.yml](images/canalizacion-9.jpeg)
+
+Una vez creado el proyecto, el asistente confirmó su vinculación exitosa con el pipeline:
+
+**Figura 8:**
+
+![Paso 4 – Proyecto CodeBuild vinculado exitosamente](images/canalizacion-10.jpeg)
+
+---
+
+### Paso 5 – Etapa de prueba (Test)
+
+Se agregó una etapa de prueba separada también sobre **AWS CodeBuild**, permitiendo distinguir en el pipeline entre la fase de construcción del artefacto y la fase de validación.
+
+| Parámetro | Valor configurado |
+|---|---|
+| **Proveedor** | AWS CodeBuild |
+| **Región** | Estados Unidos (Norte de Virginia) |
+| **Proyecto** | `codebuild-test-test` |
+| **Artefactos de entrada** | `SourceArtifact` (definido por Source) |
+| **Reintento automático** | Activado |
+
+**Figura 9:**
+
+![Paso 5 – Etapa de prueba](images/canalizacion-11.jpeg)
+
+---
+
+### Paso 7 – Revisión y creación
+
+El asistente presentó el resumen final de configuración antes de crear la canalización:
+
+| Sección | Detalle |
+|---|---|
+| **Nombre** | `ebs-test` |
+| **Tipo** | V2 / Modo QUEUED |
+| **Rol CodePipeline** | `AWSCodePipelineServiceRole-us-east-1-ebs-test` |
+| **Source** | GitHub → `sfbarrera/4304-DEVOPS-Proyecto` → `main` |
+| **DetectChanges** | `true` (trigger automático) |
+| **Build** | AWS CodeBuild → proyecto `ebs-test-test-test` |
+
+**Figura 10:**
+
+![Paso 7 – Revisión final](images/canalizacion-12.jpeg)
+
+---
+
+### Pipeline final en operación
+
+Una vez creado y corregidos los errores de configuración (documentados en la Sección 5), el pipeline `ebs-test-app` ejecutó exitosamente las tres etapas encadenadas:
+
+```
+Source (GitHub) ✅  →  Build (AWS CodeBuild) ✅  →  Test (AWS CodeBuild) ✅
+```
+
+El disparador fue el commit `b06c7c88` con mensaje *"test: trigger CI pipeline 23"*, confirmando el funcionamiento del trigger automático por push a `main`.
+
+**Figura 11:**
+
+![Pipeline ebs-test-app – Ejecución exitosa con 3 etapas](images/canalizacion-13.jpeg)
+
+---
+
+### Historial de ejecuciones
+
+La consola de ejecuciones muestra el historial completo del pipeline, evidenciando el proceso iterativo de configuración hasta lograr una ejecución exitosa:
+
+| ID de ejecución | Estado | Disparador | Hora (UTC-5) | Duración |
+|---|---|---|---|---|
+| `321a6825` | Exitoso | Commit `b06c7c88` – *test: trigger CI pipeline 23* | 26 Abr 7:45 PM | 17 s |
+| `3e159926` | Error | Commit `69320df6` – *test: trigger CI pipeline* | 26 Abr 7:40 PM | 17 s |
+| `465ed028` | Error | Commit `43c446fd` – *test: trigger CI pipeline* | 26 Abr 7:37 PM | 16 s |
+| `7974aeb1` | Error | CreatePipeline – *pipeline is up 2* | 26 Abr 7:34 PM | 18 s |
+
+**Figura 12:**
+
+![Historial de ejecuciones del pipeline](images/canalizacion-14.jpeg)
+
+---
+
+## 5. Ejecución Exitosa del Pipeline
+
+### 5.1 Resumen de la ejecución
 
 | Parámetro | Valor |
 |---|---|
@@ -149,7 +353,7 @@ Las pruebas unitarias están implementadas con `pytest` usando SQLite en memoria
 | **Estado final** | SUCCEEDED |
 | **Artefacto generado** | `build/app.zip` |
 
-### 3.2 Resultado por fase
+### 5.2 Resultado por fase
 
 | Fase | Estado | Detalle |
 |---|---|---|
@@ -160,7 +364,7 @@ Las pruebas unitarias están implementadas con `pytest` usando SQLite en memoria
 | `POST_BUILD` | SUCCEEDED | Confirmación de fecha |
 | `UPLOAD_ARTIFACTS` | SUCCEEDED | Artefacto subido a S3 |
 
-### 3.3 Hallazgos
+### 5.3 Hallazgos
 
 **Instalación de dependencias:**
 CodeBuild instaló todas las dependencias correctamente desde `requirements.txt` (Flask, SQLAlchemy, Flask-JWT-Extended, psycopg2, gunicorn, entre otras) y `requirements-dev.txt` (pytest 8.3.3).
@@ -180,7 +384,7 @@ El artefacto `build/app.zip` fue generado empaquetando el código fuente de la a
 Build successfully completed on Sun Apr 26 02:09:14 AM UTC 2026
 ```
 
-### 3.4 Evidencia
+### 5.4 Evidencia
 
 **Figura 1:** Vista de la consola de AWS CodeBuild mostrando el log completo del build exitoso.
 
@@ -188,9 +392,79 @@ Build successfully completed on Sun Apr 26 02:09:14 AM UTC 2026
 
 ---
 
-## 4. Ejecución Fallida del Pipeline
+## 6. Ejecuciones Fallidas del Pipeline
 
-### 4.1 Resumen de la ejecución
+Durante el proceso de configuración del pipeline se registraron dos ejecuciones fallidas, cada una con una causa raíz distinta. Ambas se documentan a continuación.
+
+---
+
+### 6.1 Fallo por error de permisos IAM (AssumeRole)
+
+#### Resumen de la ejecución
+
+| Parámetro | Valor |
+|---|---|
+| **Pipeline** | `ebs-pipe-test` |
+| **ID de ejecución** | `910e2eff-392b-462a-ad92-1afc2b1d375d` |
+| **Disparador** | `CreatePipeline – root` |
+| **Duración** | 8 segundos |
+| **Estado final** | ERROR |
+| **Fase con fallo** | `BUILD` (inicio del build) |
+
+#### Descripción del error
+
+```
+Error calling startBuild: CodeBuild is not authorized to perform: sts:AssumeRole
+on service role. Please verify that:
+  1) The provided service role exists,
+  2) The role name is case-sensitive and matches exactly, and
+  3) The role has the necessary trust policy configured.
+(Service: AWSCodeBuild; Status Code: 400; Error Code: InvalidInputException;
+ Request ID: 31ca4553-c45e-4fcd-8642-97c45d188e09)
+```
+
+#### Análisis de la causa raíz
+
+El pipeline intentó iniciar un build en AWS CodeBuild, pero falló al momento de asumir el rol IAM de servicio (*service role*) asignado al proyecto.
+
+**Causa:** El rol IAM configurado en el proyecto de CodeBuild no tenía la *trust policy* correcta para permitir que el servicio `codebuild.amazonaws.com` lo asumiera mediante `sts:AssumeRole`. Esto ocurrió porque el pipeline fue creado con un rol IAM recién generado, cuya relación de confianza con CodeBuild no había sido configurada correctamente.
+
+**Flujo del fallo:**
+
+```
+Source (GitHub) → SUCCEEDED  ✅
+        │
+        ▼
+Build (AWS CodeBuild)
+  └── startBuild → FAILED ❌  (duración total: 8 s)
+        Razón: sts:AssumeRole denegado sobre el service role de CodeBuild
+        El rol IAM no tenía trust policy para codebuild.amazonaws.com
+```
+
+#### Hallazgos
+
+- La etapa **Source** completó exitosamente: el código fue descargado desde GitHub sin problemas.
+- El fallo ocurrió antes de que CodeBuild pudiera inicializar el contenedor de build. La duración de solo 8 segundos confirma que el error es previo a cualquier ejecución de comandos.
+- La corrección requirió verificar que el rol IAM del proyecto de CodeBuild incluyera en su *trust policy* la siguiente entrada:
+  ```json
+  {
+    "Effect": "Allow",
+    "Principal": { "Service": "codebuild.amazonaws.com" },
+    "Action": "sts:AssumeRole"
+  }
+  ```
+
+#### Evidencia
+
+**Figura 2:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `910e2eff` en el pipeline `ebs-pipe-test`, con el error `InvalidInputException` por falta de permisos IAM en la etapa de Build.
+
+![Pipeline CI Fallido – IAM AssumeRole](images/failed_2.jpeg)
+
+---
+
+### 6.2 Fallo por archivo de configuración no encontrado (YAML_FILE_ERROR)
+
+#### Resumen de la ejecución
 
 | Parámetro | Valor |
 |---|---|
@@ -201,7 +475,7 @@ Build successfully completed on Sun Apr 26 02:09:14 AM UTC 2026
 | **Estado final** | ERROR |
 | **Fase con fallo** | `DOWNLOAD_SOURCE` |
 
-### 4.2 Descripción del error
+#### Descripción del error
 
 ```
 Build terminated with state: FAILED.
@@ -210,11 +484,11 @@ Code: YAML_FILE_ERROR
 Message: stat /codebuild/output/src816743214/src/buildspec.yml: no such file or directory
 ```
 
-### 4.3 Análisis de la causa raíz
+#### Análisis de la causa raíz
 
-El fallo ocurrió durante la fase `DOWNLOAD_SOURCE`, antes de que el build comenzara. AWS CodeBuild intentó leer el archivo de configuración `buildspec.yml` en la raíz del repositorio descargado, pero no lo encontró.
+El fallo ocurrió durante la fase `DOWNLOAD_SOURCE`, antes de que el build comenzara. AWS CodeBuild intentó leer el archivo `buildspec.yml` en la raíz del repositorio descargado, pero no lo encontró.
 
-**Causa:** El pipeline `ebs-pipeline-final` fue creado y ejecutado por primera vez antes de que el archivo `buildspec.yml` fuera confirmado (*committed*) en la rama `main` del repositorio. Como resultado, AWS CodeBuild descargó el código fuente pero no pudo localizar el archivo de instrucciones de build.
+**Causa:** El pipeline `ebs-pipeline-final` fue creado y ejecutado antes de que el archivo `buildspec.yml` fuera confirmado (*committed*) en la rama `main` del repositorio. Como resultado, CodeBuild descargó el código fuente pero no pudo localizar el archivo de instrucciones de build.
 
 **Flujo del fallo:**
 
@@ -228,22 +502,21 @@ Build (AWS CodeBuild)
         (el archivo aún no existía en la rama main del repositorio)
 ```
 
-### 4.4 Hallazgos
+#### Hallazgos
 
 - La etapa **Source** completó exitosamente: el código fue descargado desde GitHub sin problemas.
-- El fallo ocurrió en la etapa **Build**, específicamente en la subfase de descarga del archivo de configuración (`YAML_FILE_ERROR`).
-- El error es determinista: CodeBuild no puede continuar sin el `buildspec.yml`, ya que este archivo define todas las instrucciones del build.
+- El fallo ocurrió en la subfase de lectura del archivo de configuración (`YAML_FILE_ERROR`). CodeBuild no puede continuar sin `buildspec.yml`, ya que este define todas las instrucciones del build.
 - El fallo fue resuelto agregando el archivo `buildspec.yml` a la raíz del repositorio y realizando un nuevo commit a `main`, lo que disparó automáticamente una ejecución exitosa posterior.
 
-### 4.5 Evidencia
+#### Evidencia
 
-**Figura 2:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `532cdcbf` con el mensaje de error `YAML_FILE_ERROR` en la etapa de Build.
+**Figura 3:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `532cdcbf` en el pipeline `ebs-pipeline-final`, con el mensaje de error `YAML_FILE_ERROR` en la etapa de Build.
 
-![Pipeline CI Fallido](images/failed.jpeg)
+![Pipeline CI Fallido – YAML_FILE_ERROR](images/failed_1.jpeg)
 
 ---
 
-## 5. Conclusiones
+## 7. Conclusiones
 
 | Aspecto | Resultado |
 |---|---|
@@ -252,6 +525,7 @@ Build (AWS CodeBuild)
 | Ejecución de pruebas unitarias en CI | 16/16 pruebas pasadas |
 | Generación del artefacto en CI | `app.zip` generado y subido a S3 |
 | Documentación de ejecución exitosa | Registrada con log y captura de pantalla |
-| Documentación de ejecución fallida | Registrada con análisis de causa raíz y captura de pantalla |
+| Documentación de ejecución fallida (IAM AssumeRole) | Registrada con análisis de causa raíz y captura de pantalla |
+| Documentación de ejecución fallida (YAML_FILE_ERROR) | Registrada con análisis de causa raíz y captura de pantalla |
 
-El pipeline de CI implementado cumple con todos los requisitos de la entrega: ejecuta pruebas unitarias automáticamente ante cada commit, genera el artefacto listo para despliegue en Elastic Beanstalk, y no realiza despliegue automatizado (CI únicamente, sin CD).
+Las dos ejecuciones fallidas documentadas ilustran errores reales de configuración encontrados durante el proceso de implementación, junto con su análisis y resolución.
