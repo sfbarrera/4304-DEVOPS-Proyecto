@@ -256,15 +256,39 @@ Para la especificación de compilación se configuró el rol de servicio y el en
 
 ![CodeBuild – Rol y logs](images/canalizacion-8.jpeg)
 
-La especificación de compilación fue configurada para utilizar el archivo **`buildspec.yml`** en la raíz del repositorio:
+Para el proyecto de la etapa de **pruebas**, la especificación se definió de forma inline con los comandos de instalación y ejecución de pytest:
+
+```yaml
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - python -m pip install --upgrade pip
+      - pip install -r requirements.txt
+      - pip install -r requirements-dev.txt
+  build:
+    commands:
+      - echo "==== Ejecutando pruebas unitarias ===="
+      - pytest -v --maxfail=1 --disable-warnings
+      - echo "==== Pruebas finalizadas ===="
+```
 
 **Figura 7:**
+
+![CodeBuild – Especificación de compilación inline (etapa de pruebas)](images/especificacion-configuracion.jpeg)
+
+Para el proyecto de la etapa de **build**, la especificación fue configurada para utilizar el archivo **`buildspec.yml`** en la raíz del repositorio:
+
+**Figura 8:**
 
 ![CodeBuild – Especificación buildspec.yml](images/canalizacion-9.jpeg)
 
 Una vez creado el proyecto, el asistente confirmó su vinculación exitosa con el pipeline:
 
-**Figura 8:**
+**Figura 9:**
 
 ![Paso 4 – Proyecto CodeBuild vinculado exitosamente](images/canalizacion-10.jpeg)
 
@@ -282,7 +306,7 @@ Se agregó una etapa de prueba separada también sobre **AWS CodeBuild**, permit
 | **Artefactos de entrada** | `SourceArtifact` (definido por Source) |
 | **Reintento automático** | Activado |
 
-**Figura 9:**
+**Figura 10:**
 
 ![Paso 5 – Etapa de prueba](images/canalizacion-11.jpeg)
 
@@ -301,7 +325,7 @@ El asistente presentó el resumen final de configuración antes de crear la cana
 | **DetectChanges** | `true` (trigger automático) |
 | **Build** | AWS CodeBuild → proyecto `ebs-test-test-test` |
 
-**Figura 10:**
+**Figura 11:**
 
 ![Paso 7 – Revisión final](images/canalizacion-12.jpeg)
 
@@ -317,7 +341,7 @@ Source (GitHub) ✅  →  Build (AWS CodeBuild) ✅  →  Test (AWS CodeBuild) �
 
 El disparador fue el commit `b06c7c88` con mensaje *"test: trigger CI pipeline 23"*, confirmando el funcionamiento del trigger automático por push a `main`.
 
-**Figura 11:**
+**Figura 12:**
 
 ![Pipeline ebs-test-app – Ejecución exitosa con 3 etapas](images/canalizacion-13.jpeg)
 
@@ -334,7 +358,7 @@ La consola de ejecuciones muestra el historial completo del pipeline, evidencian
 | `465ed028` | Error | Commit `43c446fd` – *test: trigger CI pipeline* | 26 Abr 7:37 PM | 16 s |
 | `7974aeb1` | Error | CreatePipeline – *pipeline is up 2* | 26 Abr 7:34 PM | 18 s |
 
-**Figura 12:**
+**Figura 13:**
 
 ![Historial de ejecuciones del pipeline](images/canalizacion-14.jpeg)
 
@@ -386,9 +410,153 @@ Build successfully completed on Sun Apr 26 02:09:14 AM UTC 2026
 
 ### 5.4 Evidencia
 
-**Figura 1:** Vista de la consola de AWS CodeBuild mostrando el log completo del build exitoso.
+**Figura 14:** Vista de la consola de AWS CodeBuild mostrando el log completo del build exitoso.
 
 ![Pipeline CI Exitoso](images/success.png)
+
+---
+
+### 5.5 Detalle de la etapa de Build (`codebuild-test-build`)
+
+Esta etapa ejecuta el proyecto `codebuild-test-build`, responsable de instalar las dependencias de producción y generar el artefacto `app.zip`.
+
+| Parámetro | Valor |
+|---|---|
+| **ID de compilación** | `aa625ee2-aae7-4ee9-9f23-a3e65fe0d90a` |
+| **Número de compilación** | 4 |
+| **Iniciador** | `codepipeline/ebs-test-app` |
+| **Hora de inicio** | 26 Abr 2026 7:45 PM (UTC-5) |
+| **Hora de finalización** | 26 Abr 2026 7:46 PM (UTC-5) |
+| **Estado** | Realizado correctamente |
+
+El log muestra la fase `INSTALL` instalando Python 3.11 y todas las dependencias de `requirements.txt` (Flask, SQLAlchemy, Flask-JWT-Extended, psycopg2-binary, gunicorn, entre otras) y `requirements-dev.txt`.
+
+**Figura 15:**
+
+![Build – Detalle fase INSTALL y log de compilación](images/build-detalle-1.jpeg)
+
+La fase `BUILD` empaqueta el código fuente en `build/app.zip` excluyendo archivos de desarrollo, seguida de `POST_BUILD` y `UPLOAD_ARTIFACTS`, todas en estado `SUCCEEDED`.
+
+**Figura 16:**
+
+![Build – Fase BUILD, empaquetado app.zip y UPLOAD_ARTIFACTS](images/build-detalle-2.jpeg)
+
+---
+
+### 5.6 Detalle de la etapa de Test (`codebuild-test-test`)
+
+Esta etapa ejecuta el proyecto `codebuild-test-test`, responsable de correr las pruebas unitarias con pytest sobre el código fuente.
+
+| Parámetro | Valor |
+|---|---|
+| **ID de compilación** | `7db98456-35d0-4192-8d30-b22040250759` |
+| **Número de compilación** | 7 |
+| **Iniciador** | `codepipeline/ebs-test-app` |
+| **Hora de inicio** | 26 Abr 2026 7:46 PM (UTC-5) |
+| **Hora de finalización** | 26 Abr 2026 7:47 PM (UTC-5) |
+| **Estado** | Realizado correctamente |
+
+El log muestra la fase `INSTALL` instalando Python 3.11 junto con todas las dependencias de producción y de desarrollo (`pytest 8.3.3`).
+
+**Figura 17:**
+
+![Test – Detalle fase INSTALL](images/build-test-detalle-1.jpeg)
+
+La fase `BUILD` ejecuta pytest con los 16 casos de prueba, todos con resultado `PASSED`:
+
+```
+platform linux -- Python 3.11.15, pytest-8.3.3, pluggy-1.6.0
+rootdir: /codebuild/output/src346385025169/src
+collected 16 items
+
+tests/test_blacklist.py::test_post_blacklist_success PASSED              [  6%]
+tests/test_blacklist.py::test_post_blacklist_without_reason PASSED       [ 12%]
+tests/test_blacklist.py::test_post_blacklist_duplicate PASSED            [ 18%]
+tests/test_blacklist.py::test_post_blacklist_invalid_uuid PASSED         [ 25%]
+tests/test_blacklist.py::test_post_blacklist_invalid_email PASSED        [ 31%]
+tests/test_blacklist.py::test_post_blacklist_reason_too_long PASSED      [ 37%]
+tests/test_blacklist.py::test_post_blacklist_missing_email PASSED        [ 43%]
+tests/test_blacklist.py::test_post_blacklist_missing_app_uuid PASSED     [ 50%]
+tests/test_blacklist.py::test_post_blacklist_empty_body PASSED           [ 56%]
+tests/test_blacklist.py::test_post_blacklist_no_token PASSED             [ 68%]
+tests/test_blacklist.py::test_post_blacklist_invalid_token PASSED        [ 75%]
+tests/test_blacklist.py::test_get_blacklisted_email PASSED               [ 81%]
+tests/test_blacklist.py::test_get_non_blacklisted_email PASSED           [ 87%]
+tests/test_blacklist.py::test_get_blacklist_no_token PASSED              [ 93%]
+tests/test_blacklist.py::test_health_check_ok PASSED                     [ 93%]
+tests/test_blacklist.py::test_health_check_no_auth_required PASSED       [100%]
+
+==================== 16 passed, 22 warnings in 1.25s ====================
+```
+
+**Figura 18:**
+
+![Test – Fase BUILD con pytest, 16/16 tests PASSED](images/build-test-detalle-2.jpeg)
+
+---
+
+### 5.7 Artefactos construidos en Amazon S3
+
+Cada ejecución del pipeline almacena sus artefactos en un bucket de **Amazon S3** bajo dos carpetas diferenciadas: `BuildArtif/` para los artefactos generados por la etapa de compilación, y `SourceArti/` para los artefactos de código fuente capturados por la etapa de origen.
+
+#### Carpeta `BuildArtif/` — artefactos de compilación
+
+Contiene los artefactos generados por AWS CodeBuild. Cada objeto corresponde a una ejecución del pipeline y pesa aproximadamente **4.0 MB**.
+
+| Objeto | Última modificación | Tamaño |
+|---|---|---|
+| `tCSPEBH` | 26 Abr 2026 7:46 PM | 4.0 MB |
+| `1OOr3Jy` | 26 Abr 2026 7:41 PM | 4.0 MB |
+| `cuY2xLj` | 26 Abr 2026 7:38 PM | 4.0 MB |
+| `byOuTAK` | 26 Abr 2026 7:35 PM | 4.0 MB |
+
+**Figura 19:**
+
+![S3 – Carpeta BuildArtif con artefactos de compilación](images/artifact-1.jpeg)
+
+#### Carpeta `SourceArti/` — artefactos de código fuente
+
+Contiene los artefactos de origen capturados por la etapa Source del pipeline (código empaquetado desde GitHub).
+
+| Objeto | Última modificación | Tamaño |
+|---|---|---|
+| `ZdtBg1z` | 26 Abr 2026 7:45 PM | 4.0 MB |
+| `jMv6xZ9` | 26 Abr 2026 7:41 PM | 4.0 MB |
+| `DLG6uYk` | 26 Abr 2026 7:37 PM | 4.0 MB |
+| `SvSK6gW` | 26 Abr 2026 7:34 PM | 4.0 MB |
+
+**Figura 20:**
+
+![S3 – Carpeta SourceArti con artefactos de código fuente](images/artifact-2.jpeg)
+
+#### Contenido del artefacto (`app.zip`)
+
+Al descargar y extraer uno de los artefactos de `BuildArtif/`, se obtiene el `app.zip` con la estructura completa del microservicio lista para despliegue en Elastic Beanstalk:
+
+| Carpeta / Archivo | Descripción |
+|---|---|
+| `.ebextensions/` | Configuración de Elastic Beanstalk |
+| `models/` | Modelos de base de datos |
+| `routes/` | Definición de endpoints |
+| `schemas/` | Esquemas de validación |
+| `app.py` | Punto de entrada de la aplicación Flask |
+| `application.py` | Entrypoint para Elastic Beanstalk |
+| `buildspec.yml` | Especificación de build para CodeBuild |
+| `Procfile` | Comando de inicio para gunicorn |
+| `requirements.txt` | Dependencias de producción |
+| `openapi.yaml` | Especificación de la API |
+
+**Figura 21:**
+
+![Contenido del app.zip extraído](images/artifact-3.jpeg)
+
+#### Descarga del artefacto desde S3
+
+El artefacto puede ser descargado directamente desde la consola de S3. El archivo `ZdtBg1z` corresponde al artefacto de la ejecución exitosa más reciente, con un tamaño de **4,095 KB**.
+
+**Figura 22:**
+
+![Descarga del artefacto desde S3](images/artifact-4.jpeg)
 
 ---
 
@@ -456,7 +624,7 @@ Build (AWS CodeBuild)
 
 #### Evidencia
 
-**Figura 2:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `910e2eff` en el pipeline `ebs-pipe-test`, con el error `InvalidInputException` por falta de permisos IAM en la etapa de Build.
+**Figura 23:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `910e2eff` en el pipeline `ebs-pipe-test`, con el error `InvalidInputException` por falta de permisos IAM en la etapa de Build.
 
 ![Pipeline CI Fallido – IAM AssumeRole](images/failed_2.jpeg)
 
@@ -510,7 +678,7 @@ Build (AWS CodeBuild)
 
 #### Evidencia
 
-**Figura 3:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `532cdcbf` en el pipeline `ebs-pipeline-final`, con el mensaje de error `YAML_FILE_ERROR` en la etapa de Build.
+**Figura 24:** Vista de la consola de AWS CodePipeline mostrando la ejecución fallida `532cdcbf` en el pipeline `ebs-pipeline-final`, con el mensaje de error `YAML_FILE_ERROR` en la etapa de Build.
 
 ![Pipeline CI Fallido – YAML_FILE_ERROR](images/failed_1.jpeg)
 
