@@ -1,6 +1,25 @@
-# Blacklist Microservice — Entrega 1
+# Blacklist Microservice
 
 Microservicio REST para gestión de listas negras de emails, desarrollado con **Flask** y desplegable en **AWS Elastic Beanstalk**.
+
+---
+
+## Documentación por entrega
+
+### Entrega 1 — Microservicio y estrategias de despliegue en AWS Elastic Beanstalk
+
+El microservicio está descrito en este archivo. Las evidencias de cada estrategia de despliegue están en `docs/entrega-1/`:
+
+| Estrategia | Evidencia |
+|---|---|
+| All at Once | [all-at-once-deployment-evidence-report.md](docs/entrega-1/all-at-once-deployment-evidence-report.md) |
+| Rolling | [rolling-deployment-evidence-report.md](docs/entrega-1/rolling-deployment-evidence-report.md) |
+| Immutable | [immutable-deployment-evidence-report.md](docs/entrega-1/immutable-deployment-evidence-report.md) |
+| Traffic Splitting | [traffic-splitting-evidence-report.md](docs/entrega-1/traffic-splitting-evidence-report.md) |
+
+### Entrega 2 — Pipeline de Integración Continua
+
+[Proyecto 1 entrega 2 – Documento.md](docs/entrega-2/Proyecto%201%20entrega%202%20%E2%80%93%20Documento.md) — Configuración del pipeline CI sobre AWS CodePipeline + CodeBuild, ejecuciones exitosas y fallidas, y artefactos generados en S3.
 
 ---
 
@@ -202,12 +221,12 @@ Configure en **Configuration → Software → Environment properties**:
 
 ---
 
-## Estrategias de despliegue documentadas (Entrega)
+## Estrategias de despliegue documentadas
 
-| Estrategia | Instancias mínimas | Downtime |
-|---|---|---|
-| All-at-once | 1 | Sí |
-| Rolling | 3+ | No |
-| Rolling with additional batch | 3+ | No |
-| Immutable | 3+ (duplica temporalmente) | No |
-| Traffic splitting | 3+ | No |
+| Estrategia | Instancias mínimas | Downtime | Evidencia |
+|---|---|---|---|
+| All-at-once | 1 | Sí | [Evidencia](docs/entrega-1/all-at-once-deployment-evidence-report.md) |
+| Rolling | 3+ | No | [Evidencia](docs/entrega-1/rolling-deployment-evidence-report.md) |
+| Rolling with additional batch | 3+ | No | — |
+| Immutable | 3+ (duplica temporalmente) | No | [Evidencia](docs/entrega-1/immutable-deployment-evidence-report.md) |
+| Traffic splitting | 3+ | No | [Evidencia](docs/entrega-1/traffic-splitting-evidence-report.md) |
