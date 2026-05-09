@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Local databases / instance folder
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Coverage
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.zip
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Beanstalk leftovers
+.elasticbeanstalk/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# CI/CD secrets — taskdef.json contains the RDS password and JWT secret in plain text.
+# We register it manually via AWS CLI; the pipeline does not need it inside the repo.
+taskdef.json
+
+# CodeBuild / CodePipeline outputs
+imagedefinitions.json
+imageDetail.json

@@ -1,0 +1,60 @@
+# Files we never want inside the Docker image.
+# Keeps the image small and avoids leaking dev/test artifacts.
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Python caches / virtualenvs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Local databases / instance folders
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Tests are not needed at runtime
+tests/
+conftest.py
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.zip
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Beanstalk / docs (not needed inside container)
+.ebextensions/
+.elasticbeanstalk/
+.ebignore
+docs/
+*.md
+!README.md
+
+# Env files (secrets)
+.env
+.env.*
+!.env.example
+
+# CI files (not needed inside the container itself)
+buildspec.yml
+appspec.json
+taskdef.json
