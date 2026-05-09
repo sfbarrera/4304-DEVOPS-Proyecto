@@ -1,9 +1,25 @@
 version: 0.2
 
-# AWS CodeBuild spec for the blacklist microservice.
-# Phases: install deps -> run unit tests -> package app.zip for Elastic Beanstalk.
-# The final artifact (app.zip) is uploaded to the S3 bucket configured in the
-# CodeBuild project. No deployment (CD) is performed here.
+# AWS CodeBuild spec for the blacklist microservice (ECS Rolling Deployment).
+#
+# Phases:
+#   install     -> Python + pip deps for running unit tests inside CodeBuild.
+#   pre_build   -> Run unit tests (pytest). Login to Amazon ECR. Compute IMAGE_TAG.
+#   build       -> Build the Docker image (linux/amd64) and tag it.
+#   post_build  -> Push the image to ECR and emit imagedefinitions.json for ECS.
+#
+# Output (artifact):
+#   imagedefinitions.json  -> consumed by the CodePipeline ECS deploy action.
+#                             Tells ECS which container -> which new image URI.
+#
+# Required CodeBuild environment variables (configure in the project):
+#   AWS_DEFAULT_REGION   e.g. us-east-1
+#   AWS_ACCOUNT_ID       e.g. 799884780595
+#   IMAGE_REPO_NAME      e.g. grupo11_app                  (ECR repo name)
+#   CONTAINER_NAME       e.g. blacklist-app                (must match taskdef container)
+#
+# IMPORTANT: This project must run with "Privileged" mode enabled in CodeBuild
+# so that Docker can build images.
 
 phases:
   install:
@@ -17,31 +33,35 @@ phases:
 
   pre_build:
     commands:
-      - echo "Running unit tests with pytest..."
+      - echo "==== Running unit tests (pytest) ===="
       - pytest -q --maxfail=1 --disable-warnings
+      - echo "==== Logging in to Amazon ECR ===="
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - REPOSITORY_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME"
+      - COMMIT_HASH=$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:-latest}
+      - echo "REPOSITORY_URI=$REPOSITORY_URI"
+      - echo "IMAGE_TAG=$IMAGE_TAG"
 
   build:
     commands:
-      - echo "Packaging application for Elastic Beanstalk..."
-      - mkdir -p build
-      - |
-        zip -r build/app.zip . \
-          -x "*.git*" \
-          -x "tests/*" \
-          -x "build/*" \
-          -x "*.pyc" \
-          -x "*__pycache__*" \
-          -x ".venv/*" \
-          -x "venv/*" \
-          -x "*.zip"
-      - echo "Artifact built at build/app.zip"
+      - echo "==== Building Docker image (linux/amd64) ===="
+      - docker build --platform linux/amd64 -t "$IMAGE_REPO_NAME:$IMAGE_TAG" .
+      - docker tag  "$IMAGE_REPO_NAME:$IMAGE_TAG" "$REPOSITORY_URI:$IMAGE_TAG"
+      - docker tag  "$IMAGE_REPO_NAME:$IMAGE_TAG" "$REPOSITORY_URI:latest"
 
   post_build:
     commands:
-      - echo "Build successfully completed on $(date)"
+      - echo "==== Pushing image to ECR ===="
+      - docker push "$REPOSITORY_URI:$IMAGE_TAG"
+      - docker push "$REPOSITORY_URI:latest"
+      - echo "==== Writing imagedefinitions.json for ECS deploy ===="
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - cat imagedefinitions.json
+      - echo "Build completed on $(date)"
 
 artifacts:
   files:
-    - build/app.zip
+    - imagedefinitions.json
   discard-paths: yes
-  name: blacklist-$(date +%Y-%m-%d-%H-%M-%S)
+  name: blacklist-rolling-$(date +%Y-%m-%d-%H-%M-%S)
