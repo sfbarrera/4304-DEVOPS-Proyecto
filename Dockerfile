@@ -45,4 +45,4 @@ CMD ["gunicorn", \
      "--graceful-timeout", "30", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
-     "application:application"]
+     "application:nonexistent_app"]
