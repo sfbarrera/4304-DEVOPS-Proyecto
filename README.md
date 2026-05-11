@@ -21,11 +21,15 @@ El microservicio está descrito en este archivo. Las evidencias de cada estrateg
 
 [Proyecto 1 entrega 2 – Documento.md](docs/entrega-2/Proyecto%201%20entrega%202%20%E2%80%93%20Documento.md) — Configuración del pipeline CI sobre AWS CodePipeline + CodeBuild, ejecuciones exitosas y fallidas, y artefactos generados en S3.
 
+### Entrega 3 - Entrega Contínua
+
+[Proyecto 1 entrega 3 – Documento.md](docs/entrega-3/Proyecto%201%20entrega%203%20–%20Documento.md) — Entrega contínua
 
 ## Video de sustentación y documentación
 
 * **Entrega 1:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/:f:/g/personal/sf_barreram1_uniandes_edu_co/IgBnjsTdQpTyS6fdb3RXICO4AfbGFklkhDmpF6D8k1a8EcY?e=ozOa0b)
 * **Entrega 2:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/:f:/g/personal/sf_barreram1_uniandes_edu_co/IgCTkNUUEuRhR6lf4GvAjirWATJfgZBO0l-p_SJEn-mvCqQ?e=ktMUfH)
+* **Entrega 3:** [Ver video en SharePoint](https://uniandes-my.sharepoint.com/my?id=%2Fpersonal%2Fsf%5Fbarreram1%5Funiandes%5Fedu%5Fco%2FDocuments%2F4304%2FEntrega%203&viewid=b4ddf815%2D69ed%2D45e5%2Da15f%2D1a88970db8f6)
 ---
 
 ## Stack tecnológico
